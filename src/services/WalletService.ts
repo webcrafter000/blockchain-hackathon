@@ -1,4 +1,4 @@
-import EventEmitter from 'events'
+import { EventEmitter } from '../utils/EventEmitter'
 import { generateRandomNode, generateRandomTxid } from '../utils/generators'
 
 // WebLN types
