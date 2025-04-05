@@ -1,4 +1,4 @@
-import EventEmitter from 'events'
+import { EventEmitter } from 'events'
 
 export interface Transaction {
   txid: string
@@ -9,6 +9,12 @@ export interface Transaction {
   to: string
   memo?: string
   status: 'pending' | 'complete' | 'failed'
+}
+
+declare global {
+  interface Window {
+    webln: any
+  }
 }
 
 export class WalletService extends EventEmitter {
