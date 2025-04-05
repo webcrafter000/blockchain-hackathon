@@ -10,7 +10,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
-import { TransactionAnalyzer, TransactionData } from '../services/TransactionAnalyzer'
+import { TransactionAnalyzer } from '../services/TransactionAnalyzer'
+import { Transaction, WalletService } from '../services/WalletService'
 
 // Register ChartJS components
 ChartJS.register(
@@ -23,28 +24,24 @@ ChartJS.register(
   Legend
 )
 
-interface Transaction extends TransactionData {
+interface TransactionWithAnalysis extends Transaction {
   analysis?: string
-  riskScore: number
+  riskScore?: number
 }
 
 interface TransactionDashboardProps {
   connected: boolean
   llmEnabled: boolean
+  walletService: WalletService
 }
-
-const SAMPLE_ANALYSES = [
-  "This transaction follows a pattern common in privacy-preserving mixers.",
-  "Multiple small transfers suggest possible fee optimization or batching.",
-  "High-value transfer with unusual timing indicates potential OTC trade.",
-  "Circular transaction pattern typical of Lightning Network routing nodes."
-]
 
 export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({ 
   connected,
-  llmEnabled
+  llmEnabled,
+  walletService
 }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [transactions, setTransactions] = useState<TransactionWithAnalysis[]>([])
+  const [balance, setBalance] = useState<number>(0)
   const analyzer = useMemo(() => new TransactionAnalyzer(), [])
 
   useEffect(() => {
@@ -53,22 +50,47 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
       return
     }
 
-    // Simulate incoming transactions
-    const interval = setInterval(async () => {
-      const mockTx = analyzer.generateMockTransaction()
-      const analysis = await analyzer.analyzeTransaction(mockTx)
-      
-      const newTx: Transaction = {
-        ...mockTx,
+    const handleTransaction = async (tx: Transaction) => {
+      const analysis = await analyzer.analyzeTransaction({
+        txid: tx.txid,
+        from: tx.from,
+        to: tx.to,
+        amount: tx.amount,
+        timestamp: tx.timestamp,
+        frequency: transactions.filter(t => 
+          t.timestamp > Date.now() - 3600000 && 
+          (t.from === tx.from || t.to === tx.to)
+        ).length,
+        isFlagged: false // You could implement address flagging here
+      })
+
+      const txWithAnalysis: TransactionWithAnalysis = {
+        ...tx,
         analysis: analysis.explanation,
         riskScore: analysis.riskScore / 100
       }
-      
-      setTransactions(prev => [...prev, newTx].slice(-20))
-    }, 2000)
 
-    return () => clearInterval(interval)
-  }, [connected, analyzer])
+      setTransactions(prev => [...prev, txWithAnalysis].slice(-20))
+    }
+
+    const handleBalance = (newBalance: number) => {
+      setBalance(newBalance)
+    }
+
+    walletService.on('transaction', handleTransaction)
+    walletService.on('balance', handleBalance)
+
+    // Set initial balance
+    const info = walletService.getWalletInfo()
+    if (info) {
+      setBalance(info.balance)
+    }
+
+    return () => {
+      walletService.off('transaction', handleTransaction)
+      walletService.off('balance', handleBalance)
+    }
+  }, [connected, analyzer, transactions, walletService])
 
   const chartData = {
     labels: transactions.map(tx => new Date(tx.timestamp).toLocaleTimeString()),
@@ -118,7 +140,13 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 p-4 rounded-lg">
-        <h2 className="text-xl mb-4">Transaction Flow</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl">Transaction Flow</h2>
+          <div className="text-right">
+            <div className="text-sm text-gray-400">Current Balance</div>
+            <div className="text-xl font-semibold">{balance.toLocaleString()} sats</div>
+          </div>
+        </div>
         <div className="h-[300px]">
           <Line data={chartData} options={chartOptions} />
         </div>
@@ -129,17 +157,55 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
         <div className="space-y-2">
           {transactions.map(tx => (
             <div key={tx.txid} className="flex flex-col gap-2 p-3 bg-gray-700 rounded">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">{tx.txid}</span>
-                  <span className="text-xs bg-gray-600 rounded px-2 py-1">
-                    {tx.from.substring(0, 6)} → {tx.to.substring(0, 6)}
-                  </span>
+              <div className="flex justify-between items-start">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">{tx.txid}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      tx.type === 'incoming' 
+                        ? 'bg-green-900 text-green-300' 
+                        : 'bg-blue-900 text-blue-300'
+                    }`}>
+                      {tx.type}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      tx.status === 'complete'
+                        ? 'bg-green-900 text-green-300'
+                        : tx.status === 'pending'
+                        ? 'bg-yellow-900 text-yellow-300'
+                        : 'bg-red-900 text-red-300'
+                    }`}>
+                      {tx.status}
+                    </span>
+                  </div>
+                  <div className="text-xs bg-gray-600 rounded px-2 py-1 flex items-center gap-1">
+                    <span className={tx.type === 'incoming' ? 'text-green-400' : 'text-blue-400'}>
+                      {tx.type === 'incoming' ? '←' : '→'}
+                    </span>
+                    {tx.type === 'incoming' ? tx.from : tx.to}
+                  </div>
+                  {tx.memo && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      📝 {tx.memo}
+                    </div>
+                  )}
                 </div>
-                <span>{tx.amount.toFixed(0)} sats</span>
-                <span className={tx.riskScore > 0.7 ? 'text-red-400' : tx.riskScore > 0.4 ? 'text-yellow-400' : 'text-green-400'}>
-                  Risk: {(tx.riskScore * 100).toFixed(0)}%
-                </span>
+                <div className="text-right">
+                  <div className={`text-lg font-semibold ${
+                    tx.type === 'incoming' ? 'text-green-400' : 'text-blue-400'
+                  }`}>
+                    {tx.type === 'incoming' ? '+' : '-'}{tx.amount.toLocaleString()} sats
+                  </div>
+                  {tx.riskScore !== undefined && (
+                    <div className={`text-sm ${
+                      tx.riskScore > 0.7 ? 'text-red-400' : 
+                      tx.riskScore > 0.4 ? 'text-yellow-400' : 
+                      'text-green-400'
+                    }`}>
+                      Risk: {(tx.riskScore * 100).toFixed(0)}%
+                    </div>
+                  )}
+                </div>
               </div>
               {llmEnabled && tx.analysis && (
                 <div className="text-sm text-gray-400 border-t border-gray-600 pt-2">

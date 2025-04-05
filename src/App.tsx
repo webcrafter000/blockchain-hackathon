@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import './App.css'
 import { WalletStatus } from './components/WalletStatus'
 import { TransactionDashboard } from './components/TransactionDashboard'
+import { WalletService } from './services/WalletService'
 
 function App() {
   const [connected, setConnected] = useState(false)
   const [llmEnabled, setLlmEnabled] = useState(false)
+  const walletService = useMemo(() => new WalletService(), [])
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
@@ -36,14 +38,27 @@ function App() {
                 AI Analysis {!connected && '(Connect Wallet)'}
               </span>
             </label>
+
+            {connected && (
+              <button
+                onClick={() => walletService.makePayment(1000, 'Test payment')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                Send Test Payment
+              </button>
+            )}
           </div>
         </div>
 
-        <TransactionDashboard connected={connected} llmEnabled={llmEnabled} />
+        <TransactionDashboard 
+          connected={connected} 
+          llmEnabled={llmEnabled} 
+          walletService={walletService}
+        />
 
         <div className="mt-4 text-center text-xs text-gray-500">
           <p>⚠️ This is a simulated testnet environment for demonstration purposes.</p>
-          <p>No real Bitcoin transactions are being processed.</p>
+          <p>No real Bitcoin transactions are being processed unless connected to Alby.</p>
         </div>
       </div>
     </div>
