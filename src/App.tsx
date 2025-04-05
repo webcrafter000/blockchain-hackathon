@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import './App.css'
 import { TransactionDashboard } from './components/TransactionDashboard'
 import { WalletStatus } from './components/WalletStatus'
 
-function App() {
+const App: React.FC = () => {
   const [connected, setConnected] = useState(false)
 
   return (
