@@ -3,6 +3,7 @@ import { WalletService, WalletInfo } from '../services/WalletService'
 
 interface WalletStatusProps {
   onConnectionChange: (connected: boolean) => void
+  walletService: WalletService
 }
 
 const truncateAddress = (address: string) => {
@@ -38,11 +39,10 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   )
 }
 
-export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange }) => {
+export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange, walletService }) => {
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null)
-  const [walletService] = useState(() => new WalletService())
 
   useEffect(() => {
     const handleDisconnect = () => {
@@ -51,9 +51,19 @@ export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange }
       setError('Wallet connection lost. Please reconnect.')
     }
 
+    const handleBalance = () => {
+      const info = walletService.getWalletInfo()
+      if (info) {
+        setWalletInfo(info)
+      }
+    }
+
     walletService.on('disconnected', handleDisconnect)
+    walletService.on('balance', handleBalance)
+
     return () => {
       walletService.off('disconnected', handleDisconnect)
+      walletService.off('balance', handleBalance)
     }
   }, [walletService, onConnectionChange])
 
