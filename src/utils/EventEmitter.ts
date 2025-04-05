@@ -1,23 +1,33 @@
-type Listener = (...args: any[]) => void
+type EventCallback = (...args: any[]) => void
+
+interface EventMap {
+  [key: string]: EventCallback[]
+}
 
 export class EventEmitter {
-  private events: { [key: string]: Listener[] } = {}
+  private events: EventMap = {}
 
-  on(event: string, listener: Listener): void {
+  on(event: string, callback: EventCallback): void {
     if (!this.events[event]) {
       this.events[event] = []
     }
-    this.events[event].push(listener)
+    this.events[event].push(callback)
   }
 
-  off(event: string, listener: Listener): void {
+  off(event: string, callback: EventCallback): void {
     if (!this.events[event]) return
-    this.events[event] = this.events[event].filter(l => l !== listener)
+    this.events[event] = this.events[event].filter(cb => cb !== callback)
   }
 
   emit(event: string, ...args: any[]): void {
     if (!this.events[event]) return
-    this.events[event].forEach(listener => listener(...args))
+    this.events[event].forEach(callback => {
+      try {
+        callback(...args)
+      } catch (error) {
+        console.error(`Error in event handler for ${event}:`, error)
+      }
+    })
   }
 
   removeAllListeners(event?: string): void {

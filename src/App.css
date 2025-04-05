@@ -5,8 +5,10 @@
 }
 
 .transaction-list {
-  max-height: 400px;
+  max-height: calc(100vh - 400px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) rgba(17, 25, 40, 0.4);
 }
 
 /* Global styles with modern SaaS aesthetic */
@@ -21,6 +23,9 @@
   --accent-glow: rgba(96, 165, 250, 0.2);
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-background: rgba(17, 25, 40, 0.75);
+  --glass-backdrop: blur(12px) saturate(180%);
 }
 
 body {
@@ -33,12 +38,10 @@ body {
 }
 
 .glassmorphic {
-  background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--card-border);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-              0 2px 4px -1px rgba(0, 0, 0, 0.06),
-              inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  background: var(--glass-background);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
 }
 
 .neumorphic {
@@ -56,13 +59,13 @@ body {
 }
 
 .gradient-button {
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  background: linear-gradient(45deg, #3b82f6, #60a5fa);
   transition: all 0.3s ease;
 }
 
 .gradient-button:hover {
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  box-shadow: 0 0 20px var(--accent-glow);
+  background: linear-gradient(45deg, #2563eb, #3b82f6);
+  transform: translateY(-1px);
 }
 
 /* Scrollbar styles */
@@ -72,16 +75,66 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(30, 41, 59, 0.5);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(96, 165, 250, 0.3);
+  background: rgba(17, 25, 40, 0.4);
   border-radius: 4px;
 }
 
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(96, 165, 250, 0.5);
+  background: rgba(59, 130, 246, 0.6);
+}
+
+/* Animation */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s infinite;
+}
+
+/* Status Colors */
+.status-pending {
+  color: #facc15;
+}
+
+.status-complete {
+  color: #34d399;
+}
+
+.status-failed {
+  color: #f87171;
+}
+
+/* Balance Changes */
+.balance-increase {
+  color: #34d399;
+}
+
+.balance-decrease {
+  color: #f87171;
+}
+
+/* Hover Effects */
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
 }
 
 /* Chart customization */

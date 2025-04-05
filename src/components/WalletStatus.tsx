@@ -1,24 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { WalletService, WalletInfo } from '../services/WalletService'
-
-interface WalletStatusProps {
-  onConnectionChange: (connected: boolean) => void
-  walletService: WalletService
-}
+import React from 'react'
+import { WalletService } from '../services/WalletService'
 
 const truncateAddress = (address: string) => {
   if (!address) return ''
   return `${address.slice(0, 4)}...${address.slice(-4)}`
 }
 
-const CopyButton: React.FC<{ text: string }> = ({ text }) => {
-  const [copied, setCopied] = useState(false)
+interface WalletStatusProps {
+  onConnect: () => Promise<void>
+  onDisconnect: () => Promise<void>
+  onSendPayment: () => Promise<void>
+  walletService: WalletService
+  llmEnabled: boolean
+}
 
-  const handleCopy = useCallback(() => {
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = React.useState(false)
+
+  const handleCopy = () => {
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }, [text])
+  }
 
   return (
     <button
@@ -32,148 +35,119 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
         </svg>
       ) : (
         <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m3 3l3 3" />
         </svg>
       )}
     </button>
   )
 }
 
-export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange, walletService }) => {
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null)
+export const WalletStatus: React.FC<WalletStatusProps> = ({
+  onConnect,
+  onDisconnect,
+  onSendPayment,
+  walletService,
+  llmEnabled
+}) => {
+  const isConnected = walletService.isConnected()
+  const isSimulationRunning = walletService.isSimulationRunning
+  const walletInfo = walletService.getWalletInfo()
 
-  useEffect(() => {
-    const handleDisconnect = () => {
-      setWalletInfo(null)
-      onConnectionChange(false)
-      setError('Wallet connection lost. Please reconnect.')
+  const handleSendPayment = async () => {
+    if (!isConnected) {
+      alert('Please connect your wallet first')
+      return
     }
 
-    const handleBalance = () => {
-      const info = walletService.getWalletInfo()
-      if (info) {
-        setWalletInfo(info)
-      }
+    if (isSimulationRunning) {
+      alert('Transaction simulation already running. Disconnect to restart.')
+      return
     }
 
-    walletService.on('disconnected', handleDisconnect)
-    walletService.on('balance', handleBalance)
-
-    return () => {
-      walletService.off('disconnected', handleDisconnect)
-      walletService.off('balance', handleBalance)
-    }
-  }, [walletService, onConnectionChange])
-
-  const handleConnect = useCallback(async () => {
-    setIsConnecting(true)
-    setError(null)
-
-    try {
-      const info = await walletService.connect()
-      setWalletInfo(info)
-      onConnectionChange(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect wallet')
-      onConnectionChange(false)
-    } finally {
-      setIsConnecting(false)
-    }
-  }, [walletService, onConnectionChange])
-
-  const handleDisconnect = useCallback(async () => {
-    try {
-      await walletService.disconnect()
-      setWalletInfo(null)
-      onConnectionChange(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disconnect wallet')
-    }
-  }, [walletService, onConnectionChange])
+    await onSendPayment()
+  }
 
   return (
-    <div className="glassmorphic rounded-2xl p-6 w-full md:max-w-md">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between">
-          <div className="w-full">
-            <h2 className="text-xl font-semibold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-200">
-              Wallet Status
-            </h2>
-            {walletInfo ? (
-              <div className="space-y-2">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-blue-200/80">Address:</span>
-                    <div className="flex items-center gap-1">
-                      <code className="text-sm glassmorphic px-2 py-1 rounded-lg font-mono" title={walletInfo.address}>
-                        {truncateAddress(walletInfo.address)}
-                      </code>
-                      <CopyButton text={walletInfo.address} />
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
-                      {walletInfo.network}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm text-blue-200/80">Balance:</span>
-                    <span className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-300">
-                      {walletInfo.balance.toLocaleString()} sats
-                    </span>
-                  </div>
-                  {walletInfo.alias && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-blue-200/80">Node:</span>
-                      <span className="text-sm text-blue-200 truncate max-w-[200px]" title={walletInfo.alias}>
-                        {walletInfo.alias}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+    <div className="glassmorphic rounded-2xl p-6">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-blue-200">Wallet Status</h3>
+            <p className={`mt-1 text-sm ${
+              isConnected ? 'text-green-400' : 'text-red-400'
+            }`}>
+              {isConnected ? 'Connected' : 'Not connected'}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {!isConnected ? (
+              <button
+                onClick={onConnect}
+                className="px-4 py-2 rounded-lg gradient-button glow-hover font-medium"
+              >
+                Connect Wallet
+              </button>
             ) : (
-              <p className="text-sm text-blue-200/60">
-                {isConnecting ? 'Connecting...' : 'Not connected'}
-              </p>
-            )}
-            {error && (
-              <div className="mt-2 text-sm text-red-400 bg-red-900/20 px-3 py-2 rounded-lg border border-red-500/20">
-                {error}
-              </div>
+              <button
+                onClick={onDisconnect}
+                className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium transition-all"
+              >
+                Disconnect
+              </button>
             )}
           </div>
-          
-          <button
-            onClick={walletInfo ? handleDisconnect : handleConnect}
-            disabled={isConnecting}
-            className={`shrink-0 px-4 py-2 rounded-xl font-medium transition-all ${
-              isConnecting
-                ? 'opacity-50 cursor-not-allowed'
-                : walletInfo
-                ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                : 'gradient-button glow-hover text-white'
-            }`}
-          >
-            {isConnecting ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Connecting
-              </span>
-            ) : walletInfo ? (
-              'Disconnect'
-            ) : (
-              'Connect Wallet'
-            )}
-          </button>
         </div>
+
+        {isConnected && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-blue-200">Simulate Tx</h3>
+                <p className="mt-1 text-sm text-blue-200/60">
+                  Simulated testnet environment
+                </p>
+              </div>
+              <button
+                onClick={handleSendPayment}
+                disabled={isSimulationRunning}
+                className={`px-6 py-2.5 rounded-xl gradient-button glow-hover font-medium text-white flex items-center gap-2 transition-all ${
+                  isSimulationRunning ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Simulate Tx
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-blue-200/80">Address:</span>
+                <div className="flex items-center gap-1">
+                  <code className="text-sm glassmorphic px-2 py-1 rounded-lg font-mono" title={walletInfo.address}>
+                    {truncateAddress(walletInfo.address)}
+                  </code>
+                  <CopyButton text={walletInfo.address} />
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm text-blue-200/80">Balance:</span>
+                <span className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-300">
+                  {walletInfo.balance.toLocaleString()} sats
+                </span>
+              </div>
+              {walletInfo.alias && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-blue-200/80">Node:</span>
+                  <span className="text-sm text-blue-200 truncate max-w-[200px]" title={walletInfo.alias}>
+                    {walletInfo.alias}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
