@@ -10,6 +10,34 @@ const truncateAddress = (address: string) => {
   return `${address.slice(0, 4)}...${address.slice(-4)}`
 }
 
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [text])
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 hover:bg-blue-500/20 rounded-md transition-colors"
+      title={copied ? 'Copied!' : 'Copy address'}
+    >
+      {copied ? (
+        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange }) => {
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,9 +96,12 @@ export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange }
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm text-blue-200/80">Address:</span>
-                    <code className="text-sm glassmorphic px-2 py-1 rounded-lg font-mono" title={walletInfo.address}>
-                      {truncateAddress(walletInfo.address)}
-                    </code>
+                    <div className="flex items-center gap-1">
+                      <code className="text-sm glassmorphic px-2 py-1 rounded-lg font-mono" title={walletInfo.address}>
+                        {truncateAddress(walletInfo.address)}
+                      </code>
+                      <CopyButton text={walletInfo.address} />
+                    </div>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
                       {walletInfo.network}
                     </span>
