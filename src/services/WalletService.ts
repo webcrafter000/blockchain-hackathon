@@ -11,6 +11,13 @@ export interface Transaction {
   status: 'pending' | 'complete' | 'failed'
 }
 
+export interface WalletInfo {
+  address: string
+  balance: number
+  network: string
+  alias?: string
+}
+
 declare global {
   interface Window {
     webln: any
@@ -22,18 +29,26 @@ export class WalletService extends EventEmitter {
   private connected: boolean = false
   private simulationMode: boolean = false
   private balance: number = 0
+  private info: WalletInfo | null = null
 
   constructor() {
     super()
   }
 
-  async connect(): Promise<void> {
+  async connect(): Promise<WalletInfo> {
     try {
       if (typeof window.webln === 'undefined') {
         this.simulationMode = true
         this.connected = true
-        this.balance = 0
-        return
+        this.balance = 1000000 // 1M sats for testing
+        this.info = {
+          address: '029a...eb318',
+          balance: this.balance,
+          network: 'testnet',
+          alias: 'Simulation Node'
+        }
+        this.emit('balance', this.balance)
+        return this.info
       }
 
       this.webln = window.webln
@@ -46,20 +61,36 @@ export class WalletService extends EventEmitter {
         this.balance = balance.balance || 0
         if (this.balance === 0) {
           this.simulationMode = true
+          this.balance = 1000000 // 1M sats for testing
         }
       } catch (e) {
         console.warn('Could not get balance, enabling simulation mode:', e)
         this.simulationMode = true
-        this.balance = 0
+        this.balance = 1000000 // 1M sats for testing
+      }
+
+      this.info = {
+        address: info.node.pubkey || '029a...eb318',
+        balance: this.balance,
+        network: info.node.network || 'testnet',
+        alias: info.node.alias
       }
 
       this.emit('balance', this.balance)
+      return this.info
     } catch (error) {
       console.error('Failed to connect wallet:', error)
       this.simulationMode = true
       this.connected = true
-      this.balance = 0
-      this.emit('balance', 0)
+      this.balance = 1000000 // 1M sats for testing
+      this.info = {
+        address: '029a...eb318',
+        balance: this.balance,
+        network: 'testnet',
+        alias: 'Simulation Node'
+      }
+      this.emit('balance', this.balance)
+      return this.info
     }
   }
 
@@ -67,6 +98,7 @@ export class WalletService extends EventEmitter {
     this.connected = false
     this.simulationMode = false
     this.balance = 0
+    this.info = null
     this.emit('disconnected')
   }
 
@@ -98,6 +130,9 @@ export class WalletService extends EventEmitter {
       }
 
       this.balance -= amount
+      if (this.info) {
+        this.info.balance = this.balance
+      }
       this.emit('transaction', tx)
       this.emit('balance', this.balance)
     } catch (error) {
@@ -122,16 +157,15 @@ export class WalletService extends EventEmitter {
     }
 
     this.balance -= amount
+    if (this.info) {
+      this.info.balance = this.balance
+    }
     this.emit('transaction', tx)
     this.emit('balance', this.balance)
   }
 
-  getWalletInfo() {
-    if (!this.connected) return null
-    return {
-      balance: this.balance,
-      simulationMode: this.simulationMode
-    }
+  getWalletInfo(): WalletInfo | null {
+    return this.info
   }
 
   isConnected(): boolean {
