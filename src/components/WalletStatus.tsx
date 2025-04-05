@@ -11,7 +11,6 @@ interface WalletStatusProps {
   onDisconnect: () => Promise<void>
   onSendPayment: () => Promise<void>
   walletService: WalletService
-  llmEnabled: boolean
 }
 
 const CopyButton: React.FC<{ text: string }> = ({ text }) => {
@@ -46,8 +45,7 @@ export const WalletStatus: React.FC<WalletStatusProps> = ({
   onConnect,
   onDisconnect,
   onSendPayment,
-  walletService,
-  llmEnabled
+  walletService
 }) => {
   const isConnected = walletService.isConnected()
   const isSimulationRunning = walletService.isSimulationRunning

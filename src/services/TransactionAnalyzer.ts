@@ -1,5 +1,3 @@
-import * as tf from '@tensorflow/tfjs'
-
 export interface TransactionData {
   txid: string
   from: string
@@ -11,7 +9,6 @@ export interface TransactionData {
 }
 
 export class TransactionAnalyzer {
-  private model: tf.LayersModel | null = null
   private flaggedAddresses = new Set(['tb1qxy', 'tb1qyz', 'tb1qzw']) // Simulated flagged addresses
 
   calculateRiskScore(tx: TransactionData): number {

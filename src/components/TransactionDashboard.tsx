@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { WalletService, Transaction } from '../services/WalletService'
 import { Line } from 'react-chartjs-2'
 import {
@@ -8,51 +8,24 @@ import {
   PointElement,
   LineElement,
   Title,
-  Tooltip as ChartTooltip,
-  Legend,
-  Filler,
-  ChartOptions
+  Tooltip,
+  Legend
 } from 'chart.js'
+import { ChartOptions, TooltipItem } from 'chart.js'
 
-// Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
   Title,
-  ChartTooltip,
-  Legend,
-  Filler
+  Tooltip,
+  Legend
 )
 
 interface TransactionDashboardProps {
   connected: boolean
-  llmEnabled: boolean
   walletService: WalletService
-}
-
-const CustomTooltip: React.FC<{ text: string }> = ({ text }) => {
-  const [showTooltip, setShowTooltip] = useState(false)
-
-  return (
-    <div className="relative inline-block">
-      <button
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        className="p-1 hover:bg-blue-500/20 rounded-full transition-colors"
-      >
-        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
-      {showTooltip && (
-        <div className="absolute left-0 top-full mt-2 w-64 bg-blue-900/80 text-blue-200 rounded-lg p-3 shadow-lg z-50">
-          <p className="text-sm whitespace-pre-wrap">{text}</p>
-        </div>
-      )}
-    </div>
-  )
 }
 
 const getTransactionType = (memo?: string): string => {
@@ -196,7 +169,6 @@ const TransactionCard: React.FC<{ transaction: Transaction; currentBalance: numb
 
 export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
   connected,
-  llmEnabled,
   walletService
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -266,13 +238,13 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
         padding: 12,
         titleFont: {
           size: 14,
-          weight: 'bold'
+          weight: 'bold' as const
         },
         bodyFont: {
           size: 13
         },
         callbacks: {
-          label: (context) => {
+          label: (context: TooltipItem<'line'>) => {
             const value = context.raw as number
             return `${value >= 0 ? '+' : ''}${value.toLocaleString()} sats`
           }

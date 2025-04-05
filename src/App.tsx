@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { WalletService } from './services/WalletService'
 import { WalletStatus } from './components/WalletStatus'
 import { TransactionDashboard } from './components/TransactionDashboard'
@@ -91,12 +91,10 @@ function App() {
               onDisconnect={handleDisconnect}
               onSendPayment={handleSendPayment}
               walletService={walletService}
-              llmEnabled={llmEnabled}
             />
 
             <TransactionDashboard
               connected={connected}
-              llmEnabled={llmEnabled}
               walletService={walletService}
             />
           </div>

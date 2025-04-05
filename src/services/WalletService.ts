@@ -48,7 +48,6 @@ export interface WalletInfo {
 }
 
 export class WalletService extends EventEmitter {
-  private webln: WebLNProvider | null = null
   private connected: boolean = false
   private balance: number = 1_000_000 // Initial balance for simulation
   private nodeInfo = {
@@ -56,7 +55,6 @@ export class WalletService extends EventEmitter {
     pubkey: '029aa35a668d3ec1b1451d6b238f9f648efb0dca9c2f9e08a29f4671fe530eb318',
     network: 'testnet'
   }
-  private simulationMode: boolean = true
   private simulationInterval: NodeJS.Timeout | null = null
   private transactions: Transaction[] = []
   private aiAnalysisEnabled: boolean = false
@@ -142,7 +140,6 @@ export class WalletService extends EventEmitter {
       this.connected = false
       
       // Always use simulation mode for demo
-      this.simulationMode = true
       this.nodeInfo = {
         alias: 'Simulation Node',
         pubkey: '029aa35a668d3ec1b1451d6b238f9f648efb0dca9c2f9e08a29f4671fe530eb318',
@@ -159,7 +156,6 @@ export class WalletService extends EventEmitter {
     } catch (error) {
       console.error('Failed to connect wallet:', error)
       this.connected = false
-      this.webln = null
       throw new Error(error instanceof Error ? error.message : 'Failed to connect wallet. Please try again.')
     }
   }
@@ -167,7 +163,6 @@ export class WalletService extends EventEmitter {
   async disconnect(): Promise<void> {
     console.log('Disconnecting wallet...')
     this.connected = false
-    this.webln = null
     this.stopSimulation()
     localStorage.removeItem(WalletService.STORAGE_KEY)
     this.emit('disconnected')
