@@ -2,7 +2,8 @@
 
 > **AI-powered Lightning Network watchdog** that monitors real-time transactions, detects anomalies, and delivers smart, local-first wallet intelligence — all with privacy at its core.
 
-!
+![HACKATHON SS](https://github.com/user-attachments/assets/45f231d2-cf9e-4e44-89d3-47ab53bafdaa)
+
 
 ---
 
@@ -68,17 +69,18 @@ As Bitcoin adoption grows and self-custody becomes mainstream, **Lightning trans
 
 ---
 
-## 🏗 Architecture
+## 🏗️ Architecture
 
 ```mermaid
 graph TD
     A[Lightning Network] --> B[Local LND Node]
     B --> C[WebSocket Service]
     C --> D[Transaction Monitor]
-    D --> E[AI Risk Engine (TensorFlow.js)]
-    E --> F[Dashboard UI (React)]
-    E --> G[AI Alert System]
+    D --> E[AI Risk Engine - TensorFlow.js]
+    E --> F[Dashboard UI]
+    E --> G[Alert System]
 ```
+
 
 ---
 
