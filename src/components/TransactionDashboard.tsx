@@ -1,6 +1,26 @@
 import React, { useEffect, useState } from 'react'
 import { Line } from 'react-chartjs-2'
-import { Chart as ChartJS } from 'chart.js/auto'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 interface Transaction {
   id: string
@@ -33,15 +53,38 @@ export const TransactionDashboard: React.FC = () => {
       label: 'Transaction Amount (sats)',
       data: transactions.map(tx => tx.amount),
       borderColor: 'rgb(75, 192, 192)',
-      tension: 0.1
+      tension: 0.1,
+      fill: false
     }]
+  }
+
+  const chartOptions = {
+    responsive: true,
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Time'
+        }
+      },
+      y: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Amount (sats)'
+        }
+      }
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 p-4 rounded-lg">
         <h2 className="text-xl mb-4">Transaction Flow</h2>
-        <Line data={chartData} />
+        <div className="h-[300px]">
+          <Line data={chartData} options={chartOptions} />
+        </div>
       </div>
       
       <div className="bg-gray-800 p-4 rounded-lg">
