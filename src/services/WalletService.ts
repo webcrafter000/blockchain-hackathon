@@ -1,210 +1,178 @@
-import { EventEmitter } from 'events'
-
-export interface WalletInfo {
-  address: string
-  alias?: string
-  balance: number
-  isTestnet: boolean
-  network: 'bitcoin' | 'testnet'
-  pubkey?: string
-}
+import { EventEmitter } from '../utils/EventEmitter'
+import type { WebLNProvider } from '../types/webln'
 
 export interface Transaction {
-  txid: string
-  from: string
-  to: string
-  amount: number
-  timestamp: number
-  memo?: string
-  type: 'incoming' | 'outgoing'
-  status: 'pending' | 'complete' | 'failed'
+  txid: string;
+  type: 'incoming' | 'outgoing';
+  amount: number;
+  timestamp: number;
+  from: string;
+  to: string;
+  status: 'pending' | 'complete' | 'failed';
+  memo?: string;
+}
+
+export interface WalletInfo {
+  address: string;
+  balance: number;
+  network: string;
+  alias?: string;
 }
 
 export class WalletService extends EventEmitter {
-  private connected: boolean = false
-  private walletInfo: WalletInfo | null = null
-  private webln: WebLNProvider | null = null
-  private connectionTimeout: NodeJS.Timeout | null = null
-  private transactionInterval: NodeJS.Timeout | null = null
+  private webln: WebLNProvider | null = null;
+  private connected = false;
+  private info: WalletInfo | null = null;
+  private simulationInterval: number | null = null;
 
   constructor() {
-    super()
-    this.setupTransactionSimulation()
+    super();
+    this.checkWebLNAvailability();
+  }
+
+  private async checkWebLNAvailability() {
+    if (typeof window !== 'undefined' && window.webln) {
+      this.webln = window.webln;
+    }
   }
 
   async connect(): Promise<WalletInfo> {
-    if (this.connected) {
-      throw new Error('Wallet is already connected')
-    }
-
     try {
-      // Try to connect to Alby/WebLN first
-      if (typeof window !== 'undefined' && window.webln) {
-        await window.webln.enable()
-        this.webln = window.webln
-        
-        // Get node info
-        const info = await this.webln.getInfo()
-        const balance = await this.webln.getBalance()
-        
-        this.connected = true
-        this.walletInfo = {
-          address: info.node.pubkey,
-          alias: info.node.alias,
-          balance: balance.balance,
-          isTestnet: info.node.pubkey.startsWith('0'),
-          network: info.node.pubkey.startsWith('0') ? 'testnet' : 'bitcoin',
-          pubkey: info.node.pubkey
-        }
-
-        this.emit('connected', this.walletInfo)
-        return this.walletInfo
+      if (!this.webln) {
+        throw new Error('WebLN not available');
       }
 
-      // Fall back to simulation if no WebLN provider
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      if (Math.random() < 0.1) {
-        throw new Error('Failed to connect to wallet. Please try again.')
-      }
+      await this.webln.enable();
+      const info = await this.webln.getInfo();
+      const balance = await this.webln.getBalance();
 
-      this.connected = true
-      this.walletInfo = {
-        address: `tb1${Math.random().toString(36).substring(2, 10)}`,
-        alias: 'Simulated Node',
-        balance: Math.floor(Math.random() * 1000000),
-        isTestnet: true,
-        network: 'testnet'
-      }
+      this.info = {
+        address: info.node.pubkey,
+        balance: balance.balance,
+        network: info.node.network || 'testnet',
+        alias: info.node.alias
+      };
 
-      this.emit('connected', this.walletInfo)
-      return this.walletInfo
-
+      this.connected = true;
+      this.startSimulation(); // For demo purposes
+      return this.info;
     } catch (error) {
-      console.error('Wallet connection error:', error)
-      throw error
+      console.error('Failed to connect wallet:', error);
+      this.startSimulation(); // Fallback to simulation
+      throw error;
     }
   }
 
   async disconnect(): Promise<void> {
+    this.connected = false;
+    this.info = null;
+    this.stopSimulation();
+    this.emit('disconnected');
+  }
+
+  async makePayment(amount: number, memo?: string): Promise<void> {
     if (!this.connected) {
-      throw new Error('Wallet is not connected')
+      throw new Error('Wallet not connected');
     }
 
-    await new Promise(resolve => setTimeout(resolve, 500))
-    this.cleanup()
-  }
+    // For demo, create a simulated transaction
+    const tx: Transaction = {
+      txid: Math.random().toString(36).substring(2, 15),
+      type: 'outgoing',
+      amount,
+      timestamp: Date.now(),
+      from: this.info?.address || 'unknown',
+      to: `node${Math.floor(Math.random() * 1000)}@lightning.network`,
+      status: 'pending',
+      memo
+    };
 
-  private cleanup() {
-    this.connected = false
-    this.walletInfo = null
-    this.webln = null
-    if (this.connectionTimeout) {
-      clearTimeout(this.connectionTimeout)
-      this.connectionTimeout = null
-    }
-    if (this.transactionInterval) {
-      clearInterval(this.transactionInterval)
-      this.transactionInterval = null
-    }
-    this.emit('disconnected')
-  }
-
-  private setupTransactionSimulation() {
-    // Generate realistic-looking transactions
-    const generateTransaction = (): Transaction => {
-      const isIncoming = Math.random() > 0.5
-      const amount = Math.floor(Math.random() * 500000) + 1000 // 1k-500k sats
-      const status = Math.random() > 0.1 ? 'complete' : 'failed'
-      
-      // Common payment types
-      const memos = [
-        'Invoice payment',
-        'Lightning tip',
-        'Streaming payment',
-        'Merchant payment',
-        'Node routing fee'
-      ]
-
-      return {
-        txid: Math.random().toString(36).substring(2, 10),
-        from: isIncoming ? `ln${Math.random().toString(36).substring(2, 8)}` : this.walletInfo?.address || '',
-        to: isIncoming ? this.walletInfo?.address || '' : `ln${Math.random().toString(36).substring(2, 8)}`,
-        amount: amount,
-        timestamp: Date.now(),
-        memo: memos[Math.floor(Math.random() * memos.length)],
-        type: isIncoming ? 'incoming' : 'outgoing',
-        status
+    this.emit('transaction', tx);
+    
+    // Simulate transaction completion
+    setTimeout(() => {
+      tx.status = Math.random() > 0.1 ? 'complete' : 'failed';
+      this.emit('transaction', tx);
+      if (tx.status === 'complete' && this.info) {
+        this.info.balance -= amount;
+        this.emit('balance', this.info.balance);
       }
-    }
-
-    // Emit simulated transactions every 5-15 seconds when connected
-    this.on('connected', () => {
-      this.transactionInterval = setInterval(() => {
-        if (this.connected) {
-          const tx = generateTransaction()
-          this.emit('transaction', tx)
-
-          // Update wallet balance
-          if (this.walletInfo && tx.status === 'complete') {
-            this.walletInfo.balance += tx.type === 'incoming' ? tx.amount : -tx.amount
-            this.emit('balance', this.walletInfo.balance)
-          }
-        }
-      }, 5000 + Math.random() * 10000)
-    })
-  }
-
-  isConnected(): boolean {
-    return this.connected
+    }, 2000);
   }
 
   getWalletInfo(): WalletInfo | null {
-    return this.walletInfo
+    return this.info;
   }
 
-  // Real WebLN methods when available
-  async makePayment(amount: number, memo?: string): Promise<Transaction> {
-    if (!this.connected) throw new Error('Wallet not connected')
-    
-    if (this.webln) {
-      try {
-        const invoice = await this.webln.makeInvoice({ amount, memo })
-        const result = await this.webln.sendPayment(invoice.paymentRequest)
+  private startSimulation() {
+    if (this.simulationInterval) return;
+
+    // Initialize demo wallet info if not connected to real wallet
+    if (!this.info) {
+      this.info = {
+        address: `node${Math.floor(Math.random() * 1000)}@lightning.network`,
+        balance: 1000000,
+        network: 'testnet',
+        alias: 'Demo Node'
+      };
+    }
+
+    this.simulationInterval = window.setInterval(() => {
+      if (Math.random() > 0.7) { // 30% chance of new transaction
+        const isIncoming = Math.random() > 0.5;
+        const amount = Math.floor(Math.random() * 500000) + 1000;
         
         const tx: Transaction = {
-          txid: result.preimage,
-          from: this.walletInfo?.address || '',
-          to: 'lightning:' + invoice.paymentRequest.substring(0, 10),
+          txid: Math.random().toString(36).substring(2, 15),
+          type: isIncoming ? 'incoming' : 'outgoing',
           amount,
           timestamp: Date.now(),
-          memo,
-          type: 'outgoing',
-          status: 'complete'
-        }
-        
-        this.emit('transaction', tx)
-        return tx
-      } catch (error) {
-        console.error('Payment error:', error)
-        throw error
+          from: isIncoming 
+            ? `node${Math.floor(Math.random() * 1000)}@lightning.network`
+            : this.info?.address || 'unknown',
+          to: !isIncoming
+            ? `node${Math.floor(Math.random() * 1000)}@lightning.network`
+            : this.info?.address || 'unknown',
+          status: 'pending',
+          memo: this.generateRandomMemo()
+        };
+
+        this.emit('transaction', tx);
+
+        // Simulate transaction completion
+        setTimeout(() => {
+          tx.status = Math.random() > 0.1 ? 'complete' : 'failed';
+          this.emit('transaction', tx);
+          
+          if (tx.status === 'complete' && this.info) {
+            this.info.balance += isIncoming ? amount : -amount;
+            this.emit('balance', this.info.balance);
+          }
+        }, Math.random() * 3000 + 1000);
       }
+    }, 5000);
+  }
+
+  private stopSimulation() {
+    if (this.simulationInterval) {
+      window.clearInterval(this.simulationInterval);
+      this.simulationInterval = null;
     }
-    
-    // Simulate payment in mock mode
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    const tx: Transaction = {
-      txid: Math.random().toString(36).substring(2, 10),
-      from: this.walletInfo?.address || '',
-      to: `ln${Math.random().toString(36).substring(2, 8)}`,
-      amount,
-      timestamp: Date.now(),
-      memo,
-      type: 'outgoing',
-      status: Math.random() > 0.1 ? 'complete' : 'failed'
-    }
-    
-    this.emit('transaction', tx)
-    return tx
+  }
+
+  private generateRandomMemo(): string {
+    const memos = [
+      'Payment for services',
+      'Monthly subscription',
+      'Coffee ☕',
+      'Lunch 🍕',
+      'Thanks for the help!',
+      'Split bill',
+      'Project payment',
+      'Donation ❤️',
+      'Meeting expenses',
+      'Workshop fee'
+    ];
+    return memos[Math.floor(Math.random() * memos.length)];
   }
 }

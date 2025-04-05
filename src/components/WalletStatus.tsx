@@ -51,48 +51,65 @@ export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange }
   }, [walletService, onConnectionChange])
 
   return (
-    <div className="bg-gray-800 p-4 rounded-lg">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl mb-1">Wallet Status</h2>
-          {walletInfo ? (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">Address:</span>
-                <code className="text-sm bg-gray-700 px-2 py-1 rounded">
-                  {walletInfo.address}
-                </code>
-                <span className="text-xs bg-yellow-600 text-black px-2 py-0.5 rounded-full">
-                  {walletInfo.network}
-                </span>
+    <div className="glassmorphic rounded-2xl p-6 w-full md:max-w-md">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-200">
+              Wallet Status
+            </h2>
+            {walletInfo ? (
+              <div className="space-y-2">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-blue-200/80">Address:</span>
+                    <code className="text-sm glassmorphic px-2 py-1 rounded-lg font-mono">
+                      {walletInfo.address}
+                    </code>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
+                      {walletInfo.network}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm text-blue-200/80">Balance:</span>
+                    <span className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-300">
+                      {walletInfo.balance.toLocaleString()} sats
+                    </span>
+                  </div>
+                  {walletInfo.alias && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-blue-200/80">Node:</span>
+                      <span className="text-sm text-blue-200">
+                        {walletInfo.alias}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-400">
-                Balance: {walletInfo.balance.toLocaleString()} sats
+            ) : (
+              <p className="text-sm text-blue-200/60">
+                {isConnecting ? 'Connecting...' : 'Not connected'}
+              </p>
+            )}
+            {error && (
+              <div className="mt-2 text-sm text-red-400 bg-red-900/20 px-3 py-2 rounded-lg border border-red-500/20">
+                {error}
               </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">
-              {isConnecting ? 'Connecting...' : 'Not connected'}
-            </p>
-          )}
-          {error && (
-            <div className="mt-2 text-sm text-red-400">
-              {error}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <button
           onClick={walletInfo ? handleDisconnect : handleConnect}
           disabled={isConnecting}
-          className={`px-4 py-2 rounded-lg transition-colors ${
+          className={`w-full px-6 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
             walletInfo
-              ? 'bg-red-600 hover:bg-red-700'
-              : 'bg-green-600 hover:bg-green-700'
+              ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+              : 'gradient-button glow-hover text-white'
           } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {isConnecting ? (
-            <div className="flex items-center gap-2">
+            <>
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle
                   className="opacity-25"
@@ -110,11 +127,21 @@ export const WalletStatus: React.FC<WalletStatusProps> = ({ onConnectionChange }
                 />
               </svg>
               Connecting...
-            </div>
+            </>
           ) : walletInfo ? (
-            'Disconnect'
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Disconnect
+            </>
           ) : (
-            'Connect Wallet'
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              Connect Wallet
+            </>
           )}
         </button>
       </div>
