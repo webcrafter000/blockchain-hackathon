@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import { TransactionAnalyzer, TransactionData } from '../services/TransactionAnalyzer'
 
 // Register ChartJS components
 ChartJS.register(
@@ -22,12 +23,9 @@ ChartJS.register(
   Legend
 )
 
-interface Transaction {
-  id: string
-  amount: number
-  timestamp: number
-  riskScore: number
+interface Transaction extends TransactionData {
   analysis?: string
+  riskScore: number
 }
 
 interface TransactionDashboardProps {
@@ -47,6 +45,7 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
   llmEnabled
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const analyzer = useMemo(() => new TransactionAnalyzer(), [])
 
   useEffect(() => {
     if (!connected) {
@@ -55,19 +54,21 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
     }
 
     // Simulate incoming transactions
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
+      const mockTx = analyzer.generateMockTransaction()
+      const analysis = await analyzer.analyzeTransaction(mockTx)
+      
       const newTx: Transaction = {
-        id: Math.random().toString(36).substring(7),
-        amount: Math.random() * 1000000,
-        timestamp: Date.now(),
-        riskScore: Math.random(),
-        analysis: SAMPLE_ANALYSES[Math.floor(Math.random() * SAMPLE_ANALYSES.length)]
+        ...mockTx,
+        analysis: analysis.explanation,
+        riskScore: analysis.riskScore / 100
       }
+      
       setTransactions(prev => [...prev, newTx].slice(-20))
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [connected])
+  }, [connected, analyzer])
 
   const chartData = {
     labels: transactions.map(tx => new Date(tx.timestamp).toLocaleTimeString()),
@@ -127,11 +128,16 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
         <h2 className="text-xl mb-4">Recent Transactions</h2>
         <div className="space-y-2">
           {transactions.map(tx => (
-            <div key={tx.id} className="flex flex-col gap-2 p-3 bg-gray-700 rounded">
+            <div key={tx.txid} className="flex flex-col gap-2 p-3 bg-gray-700 rounded">
               <div className="flex justify-between items-center">
-                <span>{tx.id}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400">{tx.txid}</span>
+                  <span className="text-xs bg-gray-600 rounded px-2 py-1">
+                    {tx.from.substring(0, 6)} → {tx.to.substring(0, 6)}
+                  </span>
+                </div>
                 <span>{tx.amount.toFixed(0)} sats</span>
-                <span className={tx.riskScore > 0.7 ? 'text-red-400' : 'text-green-400'}>
+                <span className={tx.riskScore > 0.7 ? 'text-red-400' : tx.riskScore > 0.4 ? 'text-yellow-400' : 'text-green-400'}>
                   Risk: {(tx.riskScore * 100).toFixed(0)}%
                 </span>
               </div>
