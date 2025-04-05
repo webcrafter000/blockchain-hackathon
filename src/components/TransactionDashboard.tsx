@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react'
-import { Line } from 'react-chartjs-2'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import { Line, Doughnut } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,7 +8,9 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler,
+  ArcElement
 } from 'chart.js'
 import { TransactionAnalyzer } from '../services/TransactionAnalyzer'
 import { Transaction, WalletService } from '../services/WalletService'
@@ -21,7 +23,9 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler,
+  ArcElement
 )
 
 interface TransactionWithAnalysis extends Transaction {
@@ -44,37 +48,38 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
   const [balance, setBalance] = useState<number>(0)
   const analyzer = useMemo(() => new TransactionAnalyzer(), [])
 
+  const handleTransaction = useCallback(async (tx: Transaction) => {
+    const analysis = await analyzer.analyzeTransaction({
+      txid: tx.txid,
+      from: tx.from,
+      to: tx.to,
+      amount: tx.amount,
+      timestamp: tx.timestamp,
+      frequency: 1, // Simplified for now
+      isFlagged: false
+    })
+
+    const txWithAnalysis: TransactionWithAnalysis = {
+      ...tx,
+      analysis: analysis.explanation,
+      riskScore: analysis.riskScore / 100
+    }
+
+    setTransactions(prev => {
+      const newTxs = [...prev, txWithAnalysis]
+      return newTxs.slice(-20) // Keep only last 20 transactions
+    })
+  }, [analyzer])
+
+  const handleBalance = useCallback((newBalance: number) => {
+    setBalance(newBalance)
+  }, [])
+
   useEffect(() => {
     if (!connected) {
       setTransactions([])
+      setBalance(0)
       return
-    }
-
-    const handleTransaction = async (tx: Transaction) => {
-      const analysis = await analyzer.analyzeTransaction({
-        txid: tx.txid,
-        from: tx.from,
-        to: tx.to,
-        amount: tx.amount,
-        timestamp: tx.timestamp,
-        frequency: transactions.filter(t => 
-          t.timestamp > Date.now() - 3600000 && 
-          (t.from === tx.from || t.to === tx.to)
-        ).length,
-        isFlagged: false
-      })
-
-      const txWithAnalysis: TransactionWithAnalysis = {
-        ...tx,
-        analysis: analysis.explanation,
-        riskScore: analysis.riskScore / 100
-      }
-
-      setTransactions(prev => [...prev, txWithAnalysis].slice(-20))
-    }
-
-    const handleBalance = (newBalance: number) => {
-      setBalance(newBalance)
     }
 
     walletService.on('transaction', handleTransaction)
@@ -89,9 +94,9 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
       walletService.off('transaction', handleTransaction)
       walletService.off('balance', handleBalance)
     }
-  }, [connected, analyzer, transactions, walletService])
+  }, [connected, walletService, handleTransaction, handleBalance])
 
-  const chartData = {
+  const chartData = useMemo(() => ({
     labels: transactions.map(tx => new Date(tx.timestamp).toLocaleTimeString()),
     datasets: [{
       label: 'Transaction Amount (sats)',
@@ -105,9 +110,9 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
       pointRadius: 4,
       pointHoverRadius: 6
     }]
-  }
+  }), [transactions])
 
-  const chartOptions = {
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -121,6 +126,9 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
         padding: 12,
         borderColor: 'rgba(148, 163, 184, 0.2)',
         borderWidth: 1
+      },
+      filler: {
+        propagate: false
       }
     },
     scales: {
@@ -141,7 +149,7 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
         }
       }
     }
-  }
+  }), [])
 
   if (!connected) {
     return (
@@ -232,7 +240,7 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="flex flex-col items-end gap-2">
                   <div className={`text-lg font-semibold ${
                     tx.type === 'incoming' 
                       ? 'bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-300' 
@@ -241,14 +249,42 @@ export const TransactionDashboard: React.FC<TransactionDashboardProps> = ({
                     {tx.type === 'incoming' ? '+' : '-'}{tx.amount.toLocaleString()} sats
                   </div>
                   {tx.riskScore !== undefined && (
-                    <div className={`text-sm font-medium ${
-                      tx.riskScore > 0.7 
-                        ? 'text-red-400' 
-                        : tx.riskScore > 0.4 
-                        ? 'text-yellow-400' 
-                        : 'text-green-400'
-                    }`}>
-                      Risk: {(tx.riskScore * 100).toFixed(0)}%
+                    <div className="relative w-16 h-16">
+                      <Doughnut
+                        data={{
+                          labels: ['Risk', 'Safe'],
+                          datasets: [{
+                            data: [tx.riskScore * 100, 100 - (tx.riskScore * 100)],
+                            backgroundColor: [
+                              `rgba(255, ${255 - (tx.riskScore * 255)}, 0, 0.8)`,
+                              'rgba(75, 192, 192, 0.2)'
+                            ],
+                            borderWidth: 0
+                          }]
+                        }}
+                        options={{
+                          cutout: '70%',
+                          plugins: {
+                            tooltip: {
+                              callbacks: {
+                                label: (context) => {
+                                  return context.dataIndex === 0 ? 
+                                    `Risk: ${(tx.riskScore * 100).toFixed(0)}%` :
+                                    `Safe: ${(100 - tx.riskScore * 100).toFixed(0)}%`
+                                }
+                              }
+                            },
+                            legend: {
+                              display: false
+                            }
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-sm font-bold">
+                          {(tx.riskScore * 100).toFixed(0)}%
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
