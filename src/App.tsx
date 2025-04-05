@@ -1,39 +1,51 @@
 import React, { useState } from 'react'
 import './App.css'
-import { TransactionDashboard } from './components/TransactionDashboard'
 import { WalletStatus } from './components/WalletStatus'
-import { AlertBanner } from './components/AlertBanner'
+import { TransactionDashboard } from './components/TransactionDashboard'
 
-const App: React.FC = () => {
+function App() {
   const [connected, setConnected] = useState(false)
   const [llmEnabled, setLlmEnabled] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="p-4 border-b border-gray-800">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">⚡ Lightning Sentinel</h1>
-            <p className="text-gray-400 text-sm">Decentralized AI-Powered Network Monitor</p>
-          </div>
+    <div className="min-h-screen bg-gray-900 text-white p-6">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">⚡ Lightning Sentinel</h1>
+        <p className="text-gray-400">AI-Powered Lightning Network Monitor</p>
+      </header>
+
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <WalletStatus onConnectionChange={setConnected} />
+          
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input 
-                type="checkbox" 
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
                 checked={llmEnabled}
-                onChange={(e) => setLlmEnabled(e.target.checked)}
-                className="form-checkbox h-4 w-4 text-blue-500"
+                onChange={e => setLlmEnabled(e.target.checked)}
+                disabled={!connected}
               />
-              Enable LLM Analysis
+              <div className={`w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer 
+                peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] 
+                after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full 
+                after:h-5 after:w-5 after:transition-all ${connected ? 'peer-checked:bg-green-600' : 'opacity-50 cursor-not-allowed'}`}>
+              </div>
+              <span className="ml-3 text-sm font-medium text-gray-300">
+                AI Analysis {!connected && '(Connect Wallet)'}
+              </span>
             </label>
-            <WalletStatus connected={connected} onConnect={() => setConnected(true)} />
           </div>
         </div>
-      </header>
-      <AlertBanner />
-      <main className="container mx-auto p-4">
+
         <TransactionDashboard connected={connected} llmEnabled={llmEnabled} />
-      </main>
+
+        <div className="mt-4 text-center text-xs text-gray-500">
+          <p>⚠️ This is a simulated testnet environment for demonstration purposes.</p>
+          <p>No real Bitcoin transactions are being processed.</p>
+        </div>
+      </div>
     </div>
   )
 }
